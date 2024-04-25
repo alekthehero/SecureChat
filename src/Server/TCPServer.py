@@ -1,7 +1,7 @@
 import threading
 import socket
 import ssl
-from app.Server.ClientHandler import ClientHandler
+from src.Server.ClientHandler import ClientHandler
 
 class TCPServer:
     def __init__(self, host, port):

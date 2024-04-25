@@ -1,5 +1,6 @@
 import threading
 import socket
+import os
 
 class ClientHandler:
 
@@ -22,7 +23,7 @@ class ClientHandler:
                 self.client_socket.sendall("Connection Established".encode())
                 # Compare this data from the databse.txt file
                 # username:password
-                with open(".venv\\app\\Utility\\database.txt", "r") as file:
+                with open(os.getcwd() + "/src/Utility/database.txt", "r") as file:
                     found = False
                     for line in file:
                         entry = line.strip()
@@ -38,7 +39,7 @@ class ClientHandler:
 
                     self.client_socket.sendall("Creating Account".encode())
                     # Append the new line to the database.txt file
-                    with open(".venv\\app\\Utility\\database.txt", "a") as file:
+                    with open(os.getcwd() + "/src/Utility/database.txt", "a") as file:
                         file.write(data.decode() + "\n")
 
                     break

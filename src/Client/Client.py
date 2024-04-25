@@ -1,7 +1,7 @@
 import socket
 import ssl
 import hashlib
-
+import os
 
 # Define the server address and port
 server_address = ('localhost', 12345)
@@ -10,8 +10,9 @@ server_address = ('localhost', 12345)
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 # Create SSL context
+print(os.getcwd())
 ssl_context = ssl.create_default_context()
-ssl_context.load_verify_locations("certs/cert.pem")
+ssl_context.load_verify_locations(os.getcwd() + "/certs/cert.pem")
 
 ssl_context.check_hostname = False
 
