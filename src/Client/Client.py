@@ -8,6 +8,8 @@ import os
 class Client:
 
     def __init__(self, logger: callable):
+        self.GUID = None
+
         self.logger = logger
 
         self.server_address = ('localhost', 12345)
@@ -30,14 +32,21 @@ class Client:
 
         while True:
             data = self.client_socket.recv(1024)
+            if not data:
+                break
+
+            print(data.decode())
             # first part of message before colon is success or fail, after success will come guid
             split_data = data.decode().split(":")
-            if split_data[0] == "success":
-                self.logger(split_data[1])
-                break
+            if split_data[0] == "login":
+                self.logger("GUID: " + split_data[1])
+                self.GUID = split_data[1]
+                continue
             elif split_data[0] == "fail":
                 self.logger(split_data[1])
-                break
+                continue
+
+        self.logger("Connection closed")
 
     def close(self):
         self.client_socket.close()
@@ -46,10 +55,19 @@ class Client:
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
 
         message = f"login:{username}:{hashed_password}"
-        self.client_socket.sendall(message.encode())
+        try:
+            self.client_socket.sendall(message.encode())
+        except Exception as e:
+            self.logger(f"{e}")
 
     def send_create(self, username, password):
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
 
+        # Clear the GUID to emulate a logout
+        self.GUID = None
+
         message = f"create:{username}:{hashed_password}"
-        self.client_socket.sendall(message.encode())
+        try:
+            self.client_socket.sendall(message.encode())
+        except Exception as e:
+            self.logger(f"{e}")

@@ -52,8 +52,8 @@ class MainPage(tk.Frame):
         slider = tk.Scale(self, from_=1, to=10, orient='horizontal')
         slider.grid(row=2, column=0, pady=10, sticky='ew')
 
-        client_button = tk.Button(self, text="Start Clients", command=lambda: self.start_clients(slider.get()))
-        client_button.grid(row=3, column=0, pady=10, sticky='ew')
+        self.client_button = tk.Button(self, text="Start Clients", command=lambda: self.start_clients(slider.get()))
+        self.client_button.grid(row=3, column=0, pady=10, sticky='ew')
 
         server_button = tk.Button(self, text="Start Server", command=lambda: self.start_server())
         server_button.grid(row=4, column=0, pady=10, sticky='ew')
@@ -61,6 +61,14 @@ class MainPage(tk.Frame):
         self.grid_columnconfigure(0, weight=1)
 
     def start_clients(self, num_clients):
+        if not self.server_window:
+            self.client_button.config(state='disabled', text='Start Server First')
+
+            def enable_button():
+                self.client_button.config(state='active', text='Start Clients')
+
+            self.after(1500, enable_button)
+            return
         # Filter out closed client windows first
         self.client_windows = [client for client in self.client_windows if client.winfo_exists()]
 
@@ -71,12 +79,18 @@ class MainPage(tk.Frame):
         print(f"Total clients: {len(self.client_windows)}")
 
     def start_server(self):
-        self.server_window = ServerPage(self.master)
+        self.server_window = ServerPage(self.master, self.close_server_callback)
 
+    def close_server_callback(self):
+        for client in self.client_windows:
+            client.destroy()
+        self.client_windows = []
 
 class ServerPage(tk.Toplevel):
-    def __init__(self, parent):
+    def __init__(self, parent, stop_server: callable):
         super().__init__(parent)
+        self.main_server_stop = stop_server
+
         self.TCP_server = None
 
         self.title("Server")
@@ -97,6 +111,8 @@ class ServerPage(tk.Toplevel):
         button = tk.Button(self, text="Stop Server", command=lambda: self.stop_server())
         button.grid(row=2, column=0, pady=10, padx=10, sticky='ew')
 
+        self.protocol("WM_DELETE_WINDOW", self.stop_server)
+
         self.start_server()
 
     def start_server(self):
@@ -105,11 +121,13 @@ class ServerPage(tk.Toplevel):
     def stop_server(self):
         self.TCP_server.close()
         self.TCP_server.server_thread.join()
+        self.main_server_stop()
         self.destroy()
 
     def log_server_message(self, message):
         # Tkinter is not thread safe so this makes it safe
-        self.log.after(0, lambda: self.log.insert(tk.END, message + '\n'))
+        if self.log.winfo_exists():
+            self.log.after(0, lambda: self.log.insert(tk.END, message + '\n'))
 
 
 class ClientPage(tk.Toplevel):
@@ -136,11 +154,11 @@ class ClientPage(tk.Toplevel):
         password = tk.Entry(self)
         password.grid(row=3, column=0, pady=10, padx=10, sticky='ew')
 
-        login = tk.Button(self, text="Login", command=lambda: self.login(username.get(), password.get()))
-        login.grid(row=4, column=0, pady=10, padx=10, sticky='ew')
+        self.login_button = tk.Button(self, text="Login", command=lambda: self.login(username.get(), password.get()))
+        self.login_button.grid(row=4, column=0, pady=10, padx=10, sticky='ew')
 
-        register = tk.Button(self, text="Register", command=lambda: self.register_acc(username.get(), password.get()))
-        register.grid(row=5, column=0, pady=10, padx=10, sticky='ew')
+        self.register_button = tk.Button(self, text="Register", command=lambda: self.register_acc(username.get(), password.get()))
+        self.register_button.grid(row=5, column=0, pady=10, padx=10, sticky='ew')
 
         self.response = tk.Label(self, text="")
         self.response.grid(row=6, column=0, pady=10, sticky='ew')
@@ -151,13 +169,38 @@ class ClientPage(tk.Toplevel):
 
     def login(self, username, password):
         self.client_connection.send_login(username, password)
+        self.login_button.config(state='disabled', text='Logging In')
+        self.register_button.config(state='disabled')
+
+        def check_guid():
+            if not self.client_connection.GUID:
+                self.login_button.config(state='active', text='Login')
+                self.register_button.config(state='active', text='Register')
+            else:
+                self.login_button.config(state='disabled', text='Logged In')
+
+        self.after(200, check_guid)
 
     def register_acc(self, username, password):
         self.client_connection.send_create(username, password)
+        self.register_button.config(state='disabled', text='Registering')
+        self.login_button.config(state='disabled')
+
+        def check_guid():
+            if not self.client_connection.GUID:
+                self.register_button.config(state='active', text='Register')
+                self.login_button.config(state='active', text='Login')
+            else:
+                self.login_button.config(state='disabled', text='Logged In')
+                self.register_button.config(state='disabled', text='Register')
+
+        self.after(200, check_guid)
 
     def logger(self, message):
         # makes the logger thread safe
-        self.response.after(0, lambda: self.response.config(text=message))
+        if self.response.winfo_exists():
+            self.response.after(0, lambda: self.response.config(text=message))
 
     def on_close(self):
+        self.client_connection.close()
         self.destroy()

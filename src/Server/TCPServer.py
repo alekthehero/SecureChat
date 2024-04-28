@@ -34,7 +34,7 @@ class TCPServer:
                 if self.active:  # Check if we are still active after getting a client
                     self.logger(f"Connection from {address}")
                     client_handler = ClientHandler(client, address, self.logger)
-                    client_handler.Start()
+                    client_handler.start()
                 else:
                     client.close()
             except Exception as e:

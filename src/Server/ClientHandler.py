@@ -1,6 +1,7 @@
 import threading
 import socket
 import os
+import uuid
 
 
 class ClientHandler:
@@ -13,26 +14,28 @@ class ClientHandler:
         self.client_socket = client_socket
         self.client_address = client_address
 
-    def Start(self):
-        #Start a thread to handle itself
-        self.client_thread = threading.Thread(target=self.HandleClient)
+    def start(self):
+        self.client_thread = threading.Thread(target=self.handle_client)
         self.client_thread.start()
 
-    def HandleClient(self):
+    def handle_client(self):
         with self.client_socket:
             while True:
                 data = self.client_socket.recv(1024)
                 if not data:
                     break
+
                 self.data = data.decode()
 
                 split_data = self.data.split(":")
                 if split_data[0] == "login":
                     if self.handle_login(split_data[1], split_data[2]):
-                        break
+                        continue
                 elif split_data[0] == "create":
                     if self.handle_create(split_data[1], split_data[2]):
-                        break
+                        continue
+
+            self.logger(f"Connection closed from: {self.client_address}")
 
     def handle_login(self, username, hashed_password):
         with open(os.getcwd() + "/src/Utility/database.txt", "r") as file:
@@ -40,7 +43,7 @@ class ClientHandler:
                 entry = line.strip()
                 split_entry = entry.split(":")
                 if username == split_entry[0] and hashed_password == split_entry[1]:
-                    message = "success:" + split_entry[2]  # entry 2 will be the guid
+                    message = "login:" + split_entry[2]  # entry 2 will be the guid
                     self.client_socket.sendall(message.encode())
                     self.logger(f"User {username}   GUID: {split_entry[2]}   has logged in successfully")
                     return True
@@ -65,9 +68,9 @@ class ClientHandler:
                         return False
 
             # generate a guid for the user based on their username
-            guid = str(hash(username))
+            guid = str(uuid.uuid5(uuid.NAMESPACE_DNS, username))
             file.write(username + ":" + hashed_password + ":" + guid + "\n")
-            message = "success:" + guid
+            message = "login:" + guid
             self.client_socket.sendall(message.encode())
             self.logger(f"User {username}   GUID: {guid}   has been created successfully")
             return True
