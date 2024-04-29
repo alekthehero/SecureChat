@@ -1,45 +1,73 @@
 import socket
+import threading
 import ssl
 import hashlib
 import os
 
-# Define the server address and port
-server_address = ('localhost', 12345)
 
-# Create a TCP socket
-client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+class Client:
 
-# Create SSL context
-print(os.getcwd())
-ssl_context = ssl.create_default_context()
-ssl_context.load_verify_locations(os.getcwd() + "/certs/cert.pem")
+    def __init__(self, logger: callable):
+        self.GUID = None
 
-ssl_context.check_hostname = False
+        self.logger = logger
 
-# Wrap the socket with SSL
-client_socket = ssl_context.wrap_socket(client_socket, server_hostname="localhost")
+        self.server_address = ('localhost', 12345)
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-# Get user input for usernmae and password and hash it 
-username = input("Enter username: ")
-password = input("Enter password: ")
-hashed_password = hashlib.sha256(password.encode()).hexdigest()
-print(f"Hashed password: {hashed_password}")
+        print(os.getcwd())
+        ssl_context = ssl.create_default_context()
+        ssl_context.load_verify_locations(os.getcwd() + "/certs/cert.pem")
 
-# Connect to the server
-client_socket.connect(server_address)
+        ssl_context.check_hostname = False
 
-# Send data to the server
-message = f"{username}:{hashed_password}"
-client_socket.sendall(message.encode())
+        self.client_socket = ssl_context.wrap_socket(self.client_socket, server_hostname="localhost")
 
-# Receive data from the server
-while True:
-    data = client_socket.recv(1024)
-    print("Received:", data.decode())
-    if data.decode() == "Login Successful":
-        break
-    elif data.decode() == "Creating Account":
-        break
+        self.client_thread = threading.Thread(target=self.connect)
+        self.client_thread.daemon = True
+        self.client_thread.start()
 
-# Close the connection
-client_socket.close()
+    def connect(self):
+        self.client_socket.connect(self.server_address)
+
+        while True:
+            data = self.client_socket.recv(1024)
+            if not data:
+                break
+
+            print(data.decode())
+            # first part of message before colon is success or fail, after success will come guid
+            split_data = data.decode().split(":")
+            if split_data[0] == "login":
+                self.logger("GUID: " + split_data[1])
+                self.GUID = split_data[1]
+                continue
+            elif split_data[0] == "fail":
+                self.logger(split_data[1])
+                continue
+
+        self.logger("Connection closed")
+
+    def close(self):
+        self.client_socket.close()
+
+    def send_login(self, username, password):
+        hashed_password = hashlib.sha256(password.encode()).hexdigest()
+
+        message = f"login:{username}:{hashed_password}"
+        try:
+            self.client_socket.sendall(message.encode())
+        except Exception as e:
+            self.logger(f"{e}")
+
+    def send_create(self, username, password):
+        hashed_password = hashlib.sha256(password.encode()).hexdigest()
+
+        # Clear the GUID to emulate a logout
+        self.GUID = None
+
+        message = f"create:{username}:{hashed_password}"
+        try:
+            self.client_socket.sendall(message.encode())
+        except Exception as e:
+            self.logger(f"{e}")
