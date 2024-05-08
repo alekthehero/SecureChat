@@ -7,7 +7,7 @@ class GUI(tk.Tk):
     def __init__(self):
         super().__init__()
         self.geometry('400x400')
-        self.title('Multi-Screen GUI')
+        self.title('Secure Sockets Tests')
 
         self.resizable(False, False)
         self.attributes('-fullscreen', False)
@@ -86,6 +86,7 @@ class MainPage(tk.Frame):
             client.destroy()
         self.client_windows = []
 
+
 class ServerPage(tk.Toplevel):
     def __init__(self, parent, stop_server: callable):
         super().__init__(parent)
@@ -157,7 +158,8 @@ class ClientPage(tk.Toplevel):
         self.login_button = tk.Button(self, text="Login", command=lambda: self.login(username.get(), password.get()))
         self.login_button.grid(row=4, column=0, pady=10, padx=10, sticky='ew')
 
-        self.register_button = tk.Button(self, text="Register", command=lambda: self.register_acc(username.get(), password.get()))
+        self.register_button = tk.Button(self, text="Register",
+                                         command=lambda: self.register_acc(username.get(), password.get()))
         self.register_button.grid(row=5, column=0, pady=10, padx=10, sticky='ew')
 
         self.response = tk.Label(self, text="")

@@ -35,8 +35,7 @@ class Client:
             if not data:
                 break
 
-            print(data.decode())
-            # first part of message before colon is success or fail, after success will come guid
+            # first part of message before colon is login or fail, after login will come guid
             split_data = data.decode().split(":")
             if split_data[0] == "login":
                 self.logger("GUID: " + split_data[1])
